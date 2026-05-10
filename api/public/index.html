@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VidRE">
+<title>Video Reverse Engineer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --surface: #141414; --surface2: #1c1c1c;
+    --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.15);
+    --text: #f0f0f0; --muted: #888;
+    --accent: #c8f04a; --accent-dim: rgba(200,240,74,0.12); --accent-border: rgba(200,240,74,0.3);
+    --red: #ff6b6b; --mono: 'DM Mono', monospace; --sans: 'Syne', sans-serif;
+  }
+  html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  body { display: flex; flex-direction: column; align-items: center; padding: 0 0 80px; }
+
+  header { width: 100%; max-width: 680px; padding: 2.5rem 1.5rem 1rem; animation: fadeUp 0.5s ease both; }
+  .logo-row { display: flex; align-items: center; gap: 10px; }
+  .logo-box { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+  .badge { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--accent); border: 1px solid var(--accent-border); background: var(--accent-dim); padding: 2px 8px; border-radius: 20px; }
+  .subtitle { font-size: 13px; color: var(--muted); font-family: var(--mono); padding-left: 46px; margin-top: 4px; }
+
+  main { width: 100%; max-width: 680px; padding: 0 1.5rem; display: flex; flex-direction: column; gap: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; animation: fadeUp 0.5s ease both; }
+
+  .field-label { font-family: var(--mono); font-size: 10px; font-weight: 500; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+
+  .platform-row { display: flex; gap: 6px; margin-bottom: 1rem; }
+  .plat-btn { flex: 1; padding: 8px 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); font-family: var(--mono); font-size: 11px; cursor: pointer; transition: all 0.15s; text-align: center; }
+  .plat-btn:hover { border-color: var(--border2); color: var(--text); }
+  .plat-btn.active { border-color: var(--accent-border); background: var(--accent-dim); color: var(--accent); }
+
+  input[type="url"], input[type="text"], select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--mono); font-size: 13px; padding: 10px 14px;
+    outline: none; transition: border-color 0.15s; appearance: none; -webkit-appearance: none;
+  }
+  input:focus, select:focus { border-color: var(--accent-border); }
+  input::placeholder { color: #444; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .chip { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); font-family: var(--mono); font-size: 11px; cursor: pointer; transition: all 0.15s; }
+  .chip:hover { border-color: var(--border2); color: var(--text); }
+  .chip.on { border-color: var(--accent-border); background: var(--accent-dim); color: var(--accent); }
+
+  .run-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; background: var(--accent); color: #0a0a0a; font-family: var(--sans); font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.15s, transform 0.1s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .run-btn:hover { opacity: 0.88; }
+  .run-btn:active { transform: scale(0.98); }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #loading { display: none; text-align: center; padding: 2rem 1.5rem; color: var(--muted); font-family: var(--mono); font-size: 13px; }
+  .spinner { width: 28px; height: 28px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+  .loading-steps { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .step { font-size: 12px; color: #555; transition: color 0.3s; }
+  .step.active { color: var(--accent); }
+  .step.done { color: #666; }
+
+  #result { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; animation: fadeUp 0.4s ease both; margin: 0 1.5rem; }
+  .result-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 1.25rem; border-bottom: 1px solid var(--border); }
+  .result-title { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; }
+  .result-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .copy-btn { font-family: var(--mono); font-size: 11px; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); padding: 4px 12px; border-radius: 20px; cursor: pointer; transition: all 0.15s; }
+  .copy-btn:hover { color: var(--text); border-color: var(--border2); }
+  .copy-btn.copied { color: var(--accent); border-color: var(--accent-border); }
+  #resultText { padding: 1.25rem; font-family: var(--mono); font-size: 13px; line-height: 1.75; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+
+  .new-btn { display: none; width: calc(100% - 3rem); margin: 10px 1.5rem 0; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: var(--mono); font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .new-btn:hover { color: var(--text); border-color: var(--border2); }
+
+  .error-msg { background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.2); border-radius: 10px; padding: 12px 1rem; color: var(--red); font-family: var(--mono); font-size: 12px; margin: 0 1.5rem; display: none; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 480px) {
+    header { padding: 2rem 1rem 0.75rem; }
+    main { padding: 0 1rem; }
+    #result { margin: 0 1rem; }
+    .error-msg { margin: 0 1rem; }
+    .new-btn { width: calc(100% - 2rem); margin: 10px 1rem 0; }
+    .platform-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-row">
+    <div class="logo-box">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <rect x="2" y="3" width="16" height="11" rx="2" fill="#0a0a0a"/>
+        <path d="M8 7.5L13 10L8 12.5V7.5Z" fill="#c8f04a"/>
+        <path d="M7 17H13M10 14V17" stroke="#0a0a0a" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1>Video Reverse Engineer</h1>
+    <span class="badge">AUTO ✦</span>
+  </div>
+  <p class="subtitle">Paste any TikTok or YouTube link → get full recreation prompt</p>
+</header>
+
+<main>
+  <div class="card">
+    <span class="field-label">Platform</span>
+    <div class="platform-row">
+      <button class="plat-btn active" onclick="setPlatform(this,'youtube')">▶ YouTube</button>
+      <button class="plat-btn" onclick="setPlatform(this,'tiktok')">♪ TikTok</button>
+      <button class="plat-btn" onclick="setPlatform(this,'reels')">◉ Reels</button>
+      <button class="plat-btn" onclick="setPlatform(this,'other')">··· Other</button>
+    </div>
+    <span class="field-label">Paste video link</span>
+    <input type="url" id="videoUrl" placeholder="https://youtube.com/watch?v=... or https://tiktok.com/@...">
+  </div>
+
+  <div class="card">
+    <span class="field-label">Analysis depth</span>
+    <select id="depth">
+      <option value="full">Full analysis — all sections</option>
+      <option value="quick">Quick — recreation prompt only</option>
+      <option value="script">Script & narration focus</option>
+      <option value="visual">Visual & editing style focus</option>
+    </select>
+    <div style="margin-top:1rem;">
+      <span class="field-label">Include in output</span>
+      <div class="chips">
+        <button class="chip on" onclick="toggleChip(this,'hook')">Hook breakdown</button>
+        <button class="chip on" onclick="toggleChip(this,'cta')">CTA analysis</button>
+        <button class="chip" onclick="toggleChip(this,'music')">Music & audio</button>
+        <button class="chip" onclick="toggleChip(this,'broll')">B-roll list</button>
+        <button class="chip" onclick="toggleChip(this,'captions')">Caption style</button>
+        <button class="chip" onclick="toggleChip(this,'niche')">Niche & audience</button>
+        <button class="chip" onclick="toggleChip(this,'thumbnail')">Thumbnail tips</button>
+        <button class="chip" onclick="toggleChip(this,'hashtags')">Hashtag strategy</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="run-btn" onclick="analyze()" id="runBtn">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2.5L13.5 8L3 13.5V2.5Z" fill="currentColor"/></svg>
+    Reverse engineer this video
+  </button>
+</main>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="loading-steps">
+    <div class="step" id="s1">⏳ Fetching video data...</div>
+    <div class="step" id="s2">🧠 Analyzing with AI...</div>
+    <div class="step" id="s3">✍️ Building recreation prompt...</div>
+  </div>
+</div>
+
+<div id="errorMsg" class="error-msg"></div>
+
+<div id="result">
+  <div class="result-header">
+    <div>
+      <div class="result-title">⚡ Recreation Prompt</div>
+      <div class="result-meta" id="resultMeta"></div>
+    </div>
+    <button class="copy-btn" id="copyBtn" onclick="copyResult()">Copy all</button>
+  </div>
+  <div id="resultText"></div>
+</div>
+
+<button class="new-btn" id="newBtn" onclick="reset()">↩ Analyze another video</button>
+
+<script>
+  let selectedPlatform = 'youtube';
+  const selectedExtras = new Set(['hook', 'cta']);
+
+  function setPlatform(btn, val) {
+    selectedPlatform = val;
+    document.querySelectorAll('.plat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function toggleChip(btn, key) {
+    selectedExtras.has(key) ? selectedExtras.delete(key) : selectedExtras.add(key);
+    btn.classList.toggle('on');
+  }
+
+  function copyResult() {
+    navigator.clipboard.writeText(document.getElementById('resultText').innerText).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy all'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function reset() {
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('newBtn').style.display = 'none';
+    document.getElementById('runBtn').style.display = 'flex';
+    document.getElementById('videoUrl').value = '';
+    ['s1','s2','s3'].forEach(s => { document.getElementById(s).className = 'step'; });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 6000);
+  }
+
+  function setStep(n) {
+    ['s1','s2','s3'].forEach((s, i) => {
+      const el = document.getElementById(s);
+      if (i + 1 < n) el.className = 'step done';
+      else if (i + 1 === n) el.className = 'step active';
+      else el.className = 'step';
+    });
+  }
+
+  async function analyze() {
+    const url = document.getElementById('videoUrl').value.trim();
+    const depth = document.getElementById('depth').value;
+
+    if (!url) { showError('Please paste a video link.'); return; }
+
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('newBtn').style.display = 'none';
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('errorMsg').style.display = 'none';
+    setStep(1);
+
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+    setTimeout(() => setStep(2), 2000);
+    setTimeout(() => setStep(3), 4000);
+
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, depth, extras: [...selectedExtras] })
+      });
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      const cleaned = data.result.replace(/\*\*/g, '').replace(/\*/g, '');
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('resultText').innerText = cleaned;
+      if (data.title) document.getElementById('resultMeta').textContent = data.title.slice(0, 60);
+      document.getElementById('result').style.display = 'block';
+      document.getElementById('newBtn').style.display = 'block';
+      document.getElementById('runBtn').disabled = false;
+      document.getElementById('runBtn').style.display = 'none';
+
+      setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
+
+    } catch (err) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('runBtn').disabled = false;
+      showError('Error: ' + (err.message || 'Something went wrong. Try again.'));
+    }
+  }
+</script>
+</body>
+</html>
