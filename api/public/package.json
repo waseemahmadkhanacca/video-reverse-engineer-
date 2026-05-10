@@ -1,0 +1,6 @@
+{
+  "name": "video-reverse-engineer",
+  "version": "1.0.0",
+  "description": "Reverse engineer TikTok and YouTube videos into recreation prompts",
+  "engines": { "node": ">=18" }
+}
