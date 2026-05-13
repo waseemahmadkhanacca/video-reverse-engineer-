@@ -1,7 +1,8 @@
 {
   "version": 2,
+  "outputDirectory": "public",
   "routes": [
     { "src": "/api/analyze", "dest": "/api/analyze.js" },
-    { "src": "/(.*)", "dest": "/public/$1" }
+    { "src": "/(.*)", "dest": "/$1" }
   ]
 }
